@@ -6,8 +6,10 @@ Nagivate to the folder with all the code, and ours is under:
 
 After that run the python file in the termnial:
        
-        "python library_app.py"
+        "python login.py"
 
-This should allow the library.db to be read without error, but you have to run the python file in the terminal instead of the Run Code button on VS
+This should allow the login.db to be read without error, but you have to run the python file in the terminal instead of the Run Code button on VS
+login.py starts first and the features for login in or registering should appear.
+
 
 

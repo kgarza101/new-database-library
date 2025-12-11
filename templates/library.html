@@ -46,7 +46,14 @@
                     <td>{{ book['isbn'] or 'N/A' }}</td>
                     {% if is_admin %}
                     <td>
-                        <button class="btn btn-sm btn-warning edit-book-btn" data-id="{{ book['book_id'] }}">Edit</button>
+                        <button class="btn btn-sm btn-warning edit-book-btn" 
+                                data-id="{{ book['book_id'] }}"
+                                data-title="{{ book['title'] }}"
+                                data-author="{{ book['author'] }}"
+                                data-genre="{{ book['genre'] }}"
+                                data-isbn="{{ book['isbn'] }}">
+                            Edit
+                        </button>
                         <button class="btn btn-sm btn-danger delete-book-btn" data-id="{{ book['book_id'] }}">Delete</button>
                     </td>
                     {% endif %}
@@ -59,8 +66,6 @@
                             No books found in the library. 
                             {% if is_admin %}
                             Click "Add New Book" to add new books.
-                            {% else %}
-                            Please check back later.
                             {% endif %}
                         </div>
                     </td>
@@ -81,11 +86,11 @@
             <div class="modal-body">
                 <form id="addBookForm">
                     <div class="mb-3">
-                        <label class="form-label">Title</label>
+                        <label class="form-label">Title *</label>
                         <input type="text" class="form-control" name="title" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Author</label>
+                        <label class="form-label">Author *</label>
                         <input type="text" class="form-control" name="author" required>
                     </div>
                     <div class="mb-3">
@@ -105,6 +110,42 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="editBookModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Book</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editBookForm">
+                    <input type="hidden" id="editBookId" name="book_id">
+                    <div class="mb-3">
+                        <label class="form-label">Title *</label>
+                        <input type="text" class="form-control" id="editTitle" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Author *</label>
+                        <input type="text" class="form-control" id="editAuthor" name="author" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Genre</label>
+                        <input type="text" class="form-control" id="editGenre" name="genre" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">ISBN</label>
+                        <input type="text" class="form-control" id="editIsbn" name="isbn" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="updateBookBtn">Update Book</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endif %}
 
 <div id="successMessage" class="alert alert-success alert-dismissible fade show" style="display: none;">
@@ -120,12 +161,19 @@ document.addEventListener('DOMContentLoaded', function() {
     if (saveBookBtn) {
         saveBookBtn.addEventListener('click', function() {
             const form = document.getElementById('addBookForm');
-            const formData = new FormData(form);
+            const title = form.querySelector('input[name="title"]').value.trim();
+            const author = form.querySelector('input[name="author"]').value.trim();
+            
+            if (!title || !author) {
+                alert('Title and Author are required!');
+                return;
+            }
+            
             const data = {
-                title: formData.get('title'),
-                author: formData.get('author'),
-                genre: formData.get('genre'),
-                isbn: formData.get('isbn')
+                title: title,
+                author: author,
+                genre: form.querySelector('input[name="genre"]').value.trim(),
+                isbn: form.querySelector('input[name="isbn"]').value.trim()
             };
             
             fetch('/api/books', {
@@ -138,7 +186,9 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(result => {
                 if (result.success) {
-                    alert('Book added successfully.');
+                    alert('Book added');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('addBookModal'));
+                    modal.hide();
                     location.reload();
                 } else {
                     alert('Error adding book: ' + (result.error || 'Unknown error'));
@@ -150,7 +200,68 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Delete book buttons
+    document.querySelectorAll('.edit-book-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const bookId = this.getAttribute('data-id');
+            const title = this.getAttribute('data-title');
+            const author = this.getAttribute('data-author');
+            const genre = this.getAttribute('data-genre');
+            const isbn = this.getAttribute('data-isbn');
+            
+            document.getElementById('editBookId').value = bookId;
+            document.getElementById('editTitle').value = title;
+            document.getElementById('editAuthor').value = author;
+            document.getElementById('editGenre').value = genre || '';
+            document.getElementById('editIsbn').value = isbn || '';
+            
+            const editModal = new bootstrap.Modal(document.getElementById('editBookModal'));
+            editModal.show();
+        });
+    });
+    
+    const updateBookBtn = document.getElementById('updateBookBtn');
+    if (updateBookBtn) {
+        updateBookBtn.addEventListener('click', function() {
+            const bookId = document.getElementById('editBookId').value;
+            const title = document.getElementById('editTitle').value.trim();
+            const author = document.getElementById('editAuthor').value.trim();
+            
+            if (!title || !author) {
+                alert('Title and Author are required.');
+                return;
+            }
+            
+            const data = {
+                title: title,
+                author: author,
+                genre: document.getElementById('editGenre').value.trim(),
+                isbn: document.getElementById('editIsbn').value.trim()
+            };
+            
+            fetch(`/api/books/${bookId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    alert('Book updated successfully!');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('editBookModal'));
+                    modal.hide();
+                    location.reload();
+                } else {
+                    alert('Error updating book: ' + (result.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
+        });
+    }
+    
     document.querySelectorAll('.delete-book-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const bookId = this.getAttribute('data-id');
@@ -161,7 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(response => response.json())
                 .then(result => {
                     if (result.success) {
-                        alert('Book deleted successfully!');
+                        alert('Book deleted');
                         location.reload();
                     } else {
                         alert('Error deleting book');
@@ -173,6 +284,27 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+    
+    const searchBtn = document.getElementById('searchBtn');
+    const searchInput = document.getElementById('searchInput');
+    
+    if (searchBtn) {
+        searchBtn.addEventListener('click', function() {
+            const searchTerm = searchInput.value.trim();
+            if (searchTerm) {
+
+                alert('Search functionality needs API endpoint. Search term: ' + searchTerm);
+            }
+        });
+    }
+    
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchBtn.click();
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

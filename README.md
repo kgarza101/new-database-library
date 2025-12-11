@@ -4,12 +4,13 @@ Nagivate to the folder with all the code, and ours is under:
         
         "cd new-database-library"
 
-After that run the python file in the termnial:
+After that run the text file first and then the python file to run the app.
        
+        "pip install requirements.txt"
         "python app.py"
 
-This should allow the login.db to be read without error, but you have to run the python file in the terminal instead of the Run Code button on VS
-login.py starts first and the features for login in or registering should appear.
+This should allow the webserver to start, the click to it should be in the terminal.
+
 
 
 

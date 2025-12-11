@@ -13,18 +13,15 @@ class LoginSystem:
         self.root.geometry("450x550")
         self.root.resizable(False, False)
         
-        # Database connection
         self.db_file = "usercred.db"
         self.connection = None
         self.current_user = None
         self.is_admin = False
         
-        # Connect to database
         if not self.connect_db():
             self.root.destroy()
             return
         
-        # Create UI
         self.create_login_ui()
     
     def connect_db(self):
@@ -38,11 +35,8 @@ class LoginSystem:
                 )
                 return False
             
-            # Connect to database
             self.connection = sqlite3.connect(str(db_path))
-            print("Database connection established")
-            
-            # Verify users table exists
+                        
             cursor = self.connection.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
             table_exists = cursor.fetchone()
@@ -57,7 +51,6 @@ class LoginSystem:
             cursor.execute("PRAGMA table_info(users)")
             columns = cursor.fetchall()
             column_names = [col[1] for col in columns]
-            print(f"Users table columns: {column_names}")
             
             required_columns = ['username', 'password', 'is_admin']
             missing_columns = [col for col in required_columns if col not in column_names]
@@ -71,7 +64,6 @@ class LoginSystem:
                 return False
             
             cursor.close()
-            print("Database validation successful")
             return True
             
         except sqlite3.Error as e:
@@ -84,11 +76,9 @@ class LoginSystem:
             return False
     
     def hash_password(self, password):
-        """Hash password using SHA-256"""
         return hashlib.sha256(password.encode()).hexdigest()
     
     def create_login_ui(self):
-        """Create the login interface"""
         for widget in self.root.winfo_children():
             widget.destroy()
         
@@ -399,13 +389,21 @@ class LoginSystem:
         try:
             from library_app import LibraryBookApp
             library_root = tk.Toplevel(self.root)
-            app = LibraryBookApp(library_root)
+            
+            app = LibraryBookApp(
+                library_root,
+                login_window = self.root,
+                current_user = self.current_user,
+                is_admin = self.is_admin
+            )
             
             def on_library_close():
                 library_root.destroy()
                 self.root.deiconify()
                 self.login_username_entry.delete(0, tk.END)
                 self.login_password_entry.delete(0, tk.END)
+                self.current_user = None 
+                self.is_admin = False
             
             library_root.protocol("WM_DELETE_WINDOW", on_library_close)
             

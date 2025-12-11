@@ -3,9 +3,12 @@ from tkinter import ttk, messagebox
 from database import DatabaseConnection
 
 class LibraryBookApp:
-    def __init__(self, root):
+    def __init__(self, root, login_window = None, current_user = None, is_admin = False):
         self.root = root
-        self.root.title("Library Book Records")
+        self.login_window = login_window
+        self.current_user = current_user
+        self.is_admin = is_admin
+        self.root.title(f"Library Book Records - User: {current_user}")
         self.root.geometry("900x600")
         
         # Database connection
@@ -22,18 +25,47 @@ class LibraryBookApp:
         
         self.tree.bind('<Double-Button-1>', self.on_book_double_click)
         
+        
     def widgets(self):
-        # Title label
+        title_frame = tk.Frame(self.root, bg="#2c3e50")
+        title_frame.pack(fill = tk.X)
+        
         title_label = tk.Label(
-            self.root,
+            title_frame,
             text="Library Book Records",
             font=("Arial", 20, "bold"),
             pady=20,
             bg="#2c3e50",
             fg="white"
         )
-        title_label.pack(fill=tk.X)
+        title_label.pack(fill = tk.X)
         
+        user_frame = tk.Frame(title_frame, bg="#2c3e50")
+        user_frame.pack(side = tk.RIGHT, padx=20)
+        
+        user_info = tk.Label(
+            user_frame,
+            text=f"User: {self.current_user}",
+            font=("Arial", 10),
+            bg="#2c3e50",
+            fg="white"
+        )
+        user_info.pack(side=tk.LEFT, padx=(0, 10))
+        
+        logout_btn = tk.Button(
+            user_frame,
+            text="Logout",
+            command=self.logout,
+            bg="#e74c3c",
+            fg="white",
+            padx=15,
+            pady=5,
+            font=("Arial", 10, "bold"),
+            cursor="hand2",
+            relief=tk.FLAT
+        )
+        logout_btn.pack(side = tk.LEFT)
+                
         search_frame = tk.Frame(self.root, pady=15, bg="#ecf0f1")
         search_frame.pack(fill=tk.X, padx=20)
         
@@ -118,18 +150,15 @@ class LibraryBookApp:
             cursor="hand2"
         ).pack(side=tk.LEFT, padx=5)
         
-        # Treeview frame
         tree_frame = tk.Frame(self.root)
         tree_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
         
-        # Scrollbars
         vsb = ttk.Scrollbar(tree_frame, orient="vertical")
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
        
         hsb = ttk.Scrollbar(tree_frame, orient="horizontal")
         hsb.pack(side=tk.BOTTOM, fill=tk.X)
         
-        # Treeview styling
         style = ttk.Style()
         style.theme_use("clam")
         style.configure("Treeview",
@@ -144,7 +173,6 @@ class LibraryBookApp:
                         background="#34495e",
                         foreground="white")
         
-        # Treeview
         self.tree = ttk.Treeview(
             tree_frame,
             columns=("BookID", "Title", "Author", "Genre", "ISBN"),
@@ -170,12 +198,10 @@ class LibraryBookApp:
         self.tree.column("Genre", width=150, anchor=tk.W)
         self.tree.column("ISBN", width=150, anchor=tk.W)
         
-        # Colors
         self.tree.tag_configure("oddrow", background="#f8f9fa")
         self.tree.tag_configure("evenrow", background="#ffffff")
         self.tree.pack(fill=tk.BOTH, expand=True)
         
-        # Status
         self.status_label = tk.Label(
             self.root,
             text="Ready",
@@ -186,6 +212,15 @@ class LibraryBookApp:
             font=("Arial", 9)
         )
         self.status_label.pack(side=tk.BOTTOM, fill=tk.X)
+        
+    def logout(self):
+        if messagebox.askyesno("Logout", "Are you sure you want to logout?"):
+            self.db.disconnect()
+            self.root.destroy()
+        
+        if self.login_window:
+            self.login_window.deiconify()
+            
     
     def load_books(self):
         try:
@@ -389,5 +424,5 @@ class LibraryBookApp:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = LibraryBookApp(root)
+    app = LibraryBookApp(root, login_window=None, current_user = "Guest", is_admin = False)
     root.mainloop()

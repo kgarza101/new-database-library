@@ -6,6 +6,7 @@ import sqlite3
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-production")
+port = int(os.environ.get('PORT', 5000))
 
 #Database connections
 library_db = DatabaseConnection('library.db')
@@ -166,6 +167,6 @@ def logout():
     return redirect(url_for("login"))
 
 if __name__ == '__main__':
-    app.run(debug = True, port = 5000)
+    app.run(host='0.0.0.0', port=port, debug=False)
 
 

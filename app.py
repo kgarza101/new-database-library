@@ -87,13 +87,19 @@ def library():
     if "username" not in session:
         return redirect(url_for("login"))
     
+    search_term = request.args.get('search', '').strip()
+
     books = []
     if library_db.connect():
-        books = library_db.get_all_books()        
+        if search_term:
+            books = library_db.search_books(search_term)
+        else:
+            books = library_db.get_all_books()        
     return render_template("library.html",
                            username = session['username'],
                            is_admin = session.get('is_admin', False),
-                           books = books)
+                           books = books,
+                           search_term=search_term)
     
 @app.route('/api/books', methods = ['GET'])
 def get_books():
@@ -168,5 +174,3 @@ def logout():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=port, debug=False)
-
-

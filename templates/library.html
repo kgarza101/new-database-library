@@ -287,17 +287,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const searchBtn = document.getElementById('searchBtn');
     const searchInput = document.getElementById('searchInput');
-    
+
     if (searchBtn) {
         searchBtn.addEventListener('click', function() {
             const searchTerm = searchInput.value.trim();
-            if (searchTerm) {
-
-                alert('Search functionality needs API endpoint. Search term: ' + searchTerm);
+            
+            if (searchTerm === '') {
+                window.location.href = '/library';
+                return;
             }
+            
+            window.location.href = `/library?search=${encodeURIComponent(searchTerm)}`;
         });
     }
-    
+
     if (searchInput) {
         searchInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {

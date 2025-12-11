@@ -3,34 +3,17 @@ from pathlib import Path
 import os
 
 class DatabaseConnection:
-    def __init__(self, db_file="library.db"):
-        self.connection = None
+    def __init__(self, db_file):
         self.db_file = db_file
+        self.connection = None
         
     def connect(self):
         try:
-            db_path = Path(self.db_file).resolve()
-            
-            if not db_path.exists():
-                print(f"Error: Database file not found!")
-                print(f"Looking for: {db_path}")
-                print(f"Current directory: {os.getcwd()}")
-                return False
-            
-            self.connection = sqlite3.connect(str(db_path))
-            
-            cursor = self.connection.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Books'")
-            if not cursor.fetchone():
-                print("Error: Books table not found in database!")
-                cursor.close()
-                return False
-            cursor.close()
-            
+            self.connection = sqlite3.connect(self.db_file)
+            self.connection.row_factory = sqlite3.Row
             return True
-            
         except sqlite3.Error as e:
-            print(f"Error connecting to SQLite database: {e}")
+            print(f"Error connecting to database {self.db_file}: {e}")
             return False
     
     def disconnect(self):
@@ -38,24 +21,21 @@ class DatabaseConnection:
             self.connection.close()
             self.connection = None
     
-    def execute_query(self, query, params=None):
+    def execute_query(self, query, params = None):
         try:
             cursor = self.connection.cursor()
-            
             if params:
                 cursor.execute(query, params)
             else:
                 cursor.execute(query)
             
             if query.strip().upper().startswith("SELECT"):
-                result = cursor.fetchall()
+                result = [dict(row) for row in cursor.fetchall()] 
             else:
                 self.connection.commit()
                 result = cursor.rowcount
-            
             cursor.close()
             return result
-            
         except sqlite3.Error as e:
             print(f"Error executing query: {e}")
             return None

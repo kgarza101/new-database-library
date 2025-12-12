@@ -9,7 +9,8 @@ After that run the text file first and then the python file to run the app.
         "pip install requirements.txt"
         "python app.py"
 
-This should allow the webserver to start, the click to it should be in the terminal.
+This should allow the webserver to start, the link to it should be in the terminal.
+
 
 
 

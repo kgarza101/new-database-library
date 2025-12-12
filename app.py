@@ -3,6 +3,7 @@ from database import DatabaseConnection
 import hashlib
 import os
 import sqlite3
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-production")
@@ -101,6 +102,14 @@ def library():
             books = library_db.search_books(search_term)
         else:
             books = library_db.get_all_books()
+        
+        for book in books:
+            checkout_info = library_db.get_active_checkout(book['book_id'])
+            book['checked_out'] = checkout_info is not None
+            if checkout_info:
+                book['checked_out_by'] = checkout_info['patron_id']
+                book['due_date'] = checkout_info['due_date']
+        
         library_db.disconnect()
         
     return render_template("library.html",
@@ -137,6 +146,9 @@ def add_book():
     if "username" not in session:
         return jsonify({"error": "Unauthorized"}), 401
     
+    if not session.get('is_admin', False):
+        return jsonify({"error": "Admin access required"}), 403
+    
     data = request.json
     if library_db.connect():
         book_id = library_db.add_book(
@@ -149,11 +161,13 @@ def add_book():
             return jsonify({"success": True, "id": book_id})
     return jsonify({"error": "Failed to add book"}), 500
 
-# Update book
 @app.route('/api/books/<int:book_id>', methods = ['PUT'])
 def update_book(book_id):
     if "username" not in session:
         return jsonify({"error": "Unauthorized"}), 401
+    
+    if not session.get('is_admin', False):
+        return jsonify({"error": "Admin access required"}), 403
     
     data = request.json
     if library_db.connect():
@@ -167,16 +181,72 @@ def update_book(book_id):
         return jsonify({"success": bool(success)})
     return jsonify({"error": "Database error"}), 500
 
-# Delete book
 @app.route('/api/books/<int:book_id>', methods = ['DELETE'])
 def delete_book(book_id):
     if "username" not in session:
         return jsonify({"error": "Unauthorized"}), 401
     
+    if not session.get('is_admin', False):
+        return jsonify({"error": "Admin access required"}), 403
+    
     if library_db.connect():
         success = library_db.delete_book(book_id)
         library_db.disconnect()
         return jsonify({"success": bool(success)})
+    return jsonify({"error": "Database error"}), 500
+
+@app.route('/api/checkout/<int:book_id>', methods=['POST'])
+def checkout_book(book_id):
+    if "username" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    username = session['username']
+    
+    if library_db.connect():
+        existing_checkout = library_db.get_active_checkout(book_id)
+        if existing_checkout:
+            library_db.disconnect()
+            return jsonify({"error": "Book is already checked out"}), 400
+        
+        checkout_date = datetime.now().strftime('%Y-%m-%d')
+        due_date = (datetime.now() + timedelta(days=14)).strftime('%Y-%m-%d')
+        
+        success = library_db.checkout_book(book_id, username, checkout_date, due_date)
+        library_db.disconnect()
+        
+        if success:
+            return jsonify({"success": True, "due_date": due_date})
+        else:
+            return jsonify({"error": "Failed to checkout book"}), 500
+    
+    return jsonify({"error": "Database error"}), 500
+
+@app.route('/api/checkin/<int:book_id>', methods=['POST'])
+def checkin_book(book_id):
+    if "username" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    username = session['username']
+    
+    if library_db.connect():
+        checkout_info = library_db.get_active_checkout(book_id)
+        
+        if not checkout_info:
+            library_db.disconnect()
+            return jsonify({"error": "Book is not checked out"}), 400
+        
+        if checkout_info['patron_id'] != username and not session.get('is_admin', False):
+            library_db.disconnect()
+            return jsonify({"error": "You can only return books you checked out"}), 403
+        
+        success = library_db.checkin_book(book_id, username)
+        library_db.disconnect()
+        
+        if success:
+            return jsonify({"success": True})
+        else:
+            return jsonify({"error": "Failed to check in book"}), 500
+    
     return jsonify({"error": "Database error"}), 500
 
 @app.route('/logout')

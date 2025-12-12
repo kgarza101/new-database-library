@@ -30,9 +30,8 @@
                 <th>Author</th>
                 <th>Genre</th>
                 <th>ISBN</th>
-                {% if is_admin %}
+                <th>Status</th>
                 <th>Actions</th>
-                {% endif %}
             </tr>
         </thead>
         <tbody>
@@ -44,24 +43,45 @@
                     <td>{{ book['author'] }}</td>
                     <td>{{ book['genre'] or 'N/A' }}</td>
                     <td>{{ book['isbn'] or 'N/A' }}</td>
-                    {% if is_admin %}
                     <td>
-                        <button class="btn btn-sm btn-warning edit-book-btn" 
-                                data-id="{{ book['book_id'] }}"
-                                data-title="{{ book['title'] }}"
-                                data-author="{{ book['author'] }}"
-                                data-genre="{{ book['genre'] }}"
-                                data-isbn="{{ book['isbn'] }}">
-                            Edit
-                        </button>
-                        <button class="btn btn-sm btn-danger delete-book-btn" data-id="{{ book['book_id'] }}">Delete</button>
+                        {% if book.get('checked_out') %}
+                            <span class="badge bg-danger">Checked Out</span>
+                            {% if book.get('checked_out_by') == username or is_admin %}
+                            <br><small class="text-muted">By: {{ book.get('checked_out_by') }}</small>
+                            <br><small class="text-muted">Due: {{ book.get('due_date') }}</small>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-success">Available</span>
+                        {% endif %}
                     </td>
-                    {% endif %}
+                    <td>
+                        {% if is_admin %}
+                            <button class="btn btn-sm btn-warning edit-book-btn" 
+                                    data-id="{{ book['book_id'] }}"
+                                    data-title="{{ book['title'] }}"
+                                    data-author="{{ book['author'] }}"
+                                    data-genre="{{ book['genre'] }}"
+                                    data-isbn="{{ book['isbn'] }}">
+                                Edit
+                            </button>
+                            <button class="btn btn-sm btn-danger delete-book-btn" data-id="{{ book['book_id'] }}">Delete</button>
+                        {% endif %}
+                        
+                        {% if not book.get('checked_out') %}
+                            <button class="btn btn-sm btn-primary checkout-btn" data-id="{{ book['book_id'] }}">
+                                Checkout
+                            </button>
+                        {% elif book.get('checked_out_by') == username or is_admin %}
+                            <button class="btn btn-sm btn-info checkin-btn" data-id="{{ book['book_id'] }}">
+                                Return
+                            </button>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             {% else %}
                 <tr>
-                    <td colspan="{% if is_admin %}6{% else %}5{% endif %}" class="text-center">
+                    <td colspan="7" class="text-center">
                         <div class="alert alert-warning my-3">
                             No books found in the library. 
                             {% if is_admin %}
@@ -276,6 +296,52 @@ document.addEventListener('DOMContentLoaded', function() {
                         location.reload();
                     } else {
                         alert('Error deleting book');
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error.message);
+                });
+            }
+        });
+    });
+    
+    document.querySelectorAll('.checkout-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const bookId = this.getAttribute('data-id');
+            if (confirm('Do you want to check out this book? It will be due in 2 weeks.')) {
+                fetch(`/api/checkout/${bookId}`, {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        alert('Book checked out successfully! Due date: ' + result.due_date);
+                        location.reload();
+                    } else {
+                        alert('Error: ' + (result.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error.message);
+                });
+            }
+        });
+    });
+    
+    document.querySelectorAll('.checkin-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const bookId = this.getAttribute('data-id');
+            if (confirm('Do you want to return this book?')) {
+                fetch(`/api/checkin/${bookId}`, {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        alert('Book returned successfully!');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + (result.error || 'Unknown error'));
                     }
                 })
                 .catch(error => {

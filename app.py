@@ -9,7 +9,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-production")
 port = int(os.environ.get('PORT', 5000))
 
-# Database connections - use existing databases only
+# Database connections
 library_db = DatabaseConnection('library.db')
 users_db = DatabaseConnection('usercred.db')
 

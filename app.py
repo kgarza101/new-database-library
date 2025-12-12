@@ -8,7 +8,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-production")
 port = int(os.environ.get('PORT', 5000))
 
-#Database connections
+# Database connections - use existing databases only
 library_db = DatabaseConnection('library.db')
 users_db = DatabaseConnection('usercred.db')
 
@@ -34,6 +34,7 @@ def login():
                            (username, hashed_pw))
             result = cursor.fetchone()
             cursor.close()
+            users_db.disconnect()
             
             if result:
                 session['username'] = result[0]
@@ -70,15 +71,20 @@ def register():
             if cursor.fetchone():
                 flash("Username already exists", "danger")
                 cursor.close()
+                users_db.disconnect()
                 return render_template("register.html")
             
-            #Creates user and stores data into db
+            # Creates user and stores data into db
             hashed_pw = hash_password(password)
             cursor.execute("INSERT INTO users (username, password, is_admin) VALUES (?, ?, ?)",
                 (username, hashed_pw, 1 if is_admin else 0)
             )
             users_db.connection.commit()
             cursor.close()
+            users_db.disconnect()
+            
+            flash("Registration complete. You can now login.", "success")
+            return redirect(url_for('login'))
             
     return render_template("register.html")
 
@@ -94,7 +100,9 @@ def library():
         if search_term:
             books = library_db.search_books(search_term)
         else:
-            books = library_db.get_all_books()        
+            books = library_db.get_all_books()
+        library_db.disconnect()
+        
     return render_template("library.html",
                            username = session['username'],
                            is_admin = session.get('is_admin', False),
@@ -108,6 +116,7 @@ def get_books():
     
     if library_db.connect():
         books = library_db.get_all_books()
+        library_db.disconnect()
         return jsonify(books)
     return jsonify([])
 
@@ -119,6 +128,7 @@ def search_books():
     search_term = request.args.get('q', '')
     if library_db.connect():
         books = library_db.search_books(search_term)
+        library_db.disconnect()
         return jsonify(books)
     return jsonify([])
 
@@ -134,11 +144,12 @@ def add_book():
             data.get("author"),
             data.get("genre", ""),
             data.get("isbn", ""))
+        library_db.disconnect()
         if book_id:
             return jsonify({"success": True, "id": book_id})
     return jsonify({"error": "Failed to add book"}), 500
 
-#Add book
+# Update book
 @app.route('/api/books/<int:book_id>', methods = ['PUT'])
 def update_book(book_id):
     if "username" not in session:
@@ -152,10 +163,11 @@ def update_book(book_id):
             data.get("author"),
             data.get("genre", ""),
             data.get("isbn", ""))
+        library_db.disconnect()
         return jsonify({"success": bool(success)})
     return jsonify({"error": "Database error"}), 500
 
-#Delete book
+# Delete book
 @app.route('/api/books/<int:book_id>', methods = ['DELETE'])
 def delete_book(book_id):
     if "username" not in session:
@@ -163,6 +175,7 @@ def delete_book(book_id):
     
     if library_db.connect():
         success = library_db.delete_book(book_id)
+        library_db.disconnect()
         return jsonify({"success": bool(success)})
     return jsonify({"error": "Database error"}), 500
 
